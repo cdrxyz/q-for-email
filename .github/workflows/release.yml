@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: swift test
+      - name: Build
+        run: swift build -c release
+      - name: Package
+        run: |
+          chmod +x scripts/*.sh scripts/*.py
+          scripts/assemble-app.sh
+          scripts/make-zip.sh
+          scripts/make-dmg.sh
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/*.zip dist/*.dmg dist/SHA256SUMS.txt \
+            --title "$GITHUB_REF_NAME" \
+            --notes "Unsigned Apple Silicon build. No Developer ID is required to produce it, and none was used. macOS will warn on first launch. See the README."
